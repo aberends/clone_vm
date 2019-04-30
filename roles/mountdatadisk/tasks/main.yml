@@ -1,0 +1,21 @@
+---
+
+- name: Mount data disk
+  block:
+  - name: Create mount point
+    file:
+      path: /mnt/data
+      state: directory
+
+  - name: Check if data disk is mounted
+    command: mountpoint -q /mnt/data
+    register: _data_disk_mounted_info
+    changed_when: false
+    failed_when: false
+
+  - name: Mount data disk on data mount point
+    command: mount /dev/vdb1 /mnt/data
+    args:
+      warn: false
+    when: _data_disk_mounted_info.rc == 1
+  become: true

@@ -1,0 +1,680 @@
+TINY_KVM_FOR_CLONING
+
+
+OBJECTIVE
+
+Explain how to create a tiny KVM for cloning usage.
+
+
+AUTHOR
+
+Allard Berends (AB)
+
+
+HISTORY
+
+Date with 'LC_TIME=en_US date +"\%d-\%b-\%Y \%H:\%M", '.
+01-Apr-2019 20:19, AB, start
+
+
+REFERENCES
+
+[kvm_wp]          Kernel-based Virtual Machine,
+                  https://en.wikipedia.org/wiki/Kernel-based_Virtual_Machine
+
+
+ABBREVIATIONS
+
+KVM               Kernel-based Virtual Machine
+VG                Volume Group
+
+
+TERMS
+
+KVM               Kernel-based Virtual Machine (KVM) is a
+                  virtualization module in the Linux kernel
+                  that allows the kernel to function as a
+                  hypervisor. More information on [kvm_wp].
+
+
+SECTIONS
+
+Create with:
+- delete current entries
+- save file
+- exter "ex" mode by typing ':'
+- r !sed -n 's/^\([A-Z0-9][A-Z_0-9]*\)$/- \1/p' %:p
+
+- TINY_KVM_FOR_CLONING
+- OBJECTIVE
+- AUTHOR
+- HISTORY
+- REFERENCES
+- ABBREVIATIONS
+- TERMS
+- SECTIONS
+- RPMS_AND_GROUPS_PREREQUISITES
+- VIRTUALIZATION_SERVICE
+- ENABLE_VIRT_MANAGER
+- DOWNLOAD_ISO
+- VIRT_INSTALL
+- SHRINK_VM_DISK
+- UNATTENDED_CONFIGURATION_WITH_ANSIBLE
+
+
+KVM_HOST_PREREQUISITES
+
+We tested our cloning practise on a CentOS7 and a Fedora29
+host. The host is installed with a Minimal installation
+source and default partitioning is used. Meaning that it has
+at least the centos (CentOS7 case) or the fedora (Fedora29
+case) VG (Volume Group).
+
+This can be verified with:
+
+c7# pvs
+  PV         VG      Fmt  Attr PSize   PFree   
+  /dev/sda2  centos  lvm2 a--  697.63g <659.64g
+
+f29# pvs
+  PV             VG     Fmt  Attr PSize    PFree   
+  /dev/nvme0n1p3 fedora lvm2 a--   893.05g <549.85g
+
+Make sure that on the VG at least 10GiB is available to make
+the cloneable VM.
+
+We want to run with the latest updates, so, before we do
+anything else, we execute:
+
+#
+yum -y update
+reboot
+
+
+RPMS_AND_GROUPS_PREREQUISITES
+
+TODO: update the text in this section based on the
+information obtained within a clean installation on a
+CentOS7 and a Fedora29 host.
+
+We assume that the host (CentOS7 or Fedora29) is installed
+with a Minimal installation source. So, before we can run
+the create_tpl_vm.sh script which calls ansible-playbook, we
+need to install ansible:
+
+# yum -y install epel-release
+# yum -y install ansible
+
+In order to obtain the software to make the cloneable VM, we
+need git too:
+
+# yum -y install git
+
+Now we install the software under a normal user account
+called "allard" (change with your name if you like). So we
+need to add a user. Since the user needs to be able to
+execute privileged commands later, we also add the user to
+the wheel group and make sure it can execute as root without
+providing a password:
+
+#
+useradd allard
+echo redhat | passwd --stdin allard
+usermod -a -G wheel allard
+sed -i -e 's/^\(%wheel[ \t]\+ALL=(ALL)[ \t]\+ALL\)$/#\1/' -e 's/^# \(%wheel[ \t]\+ALL=(ALL)[ \t]\+NOPASSWD:[ \t]\+ALL\)$/\1/' /etc/sudoers
+
+Log out from the root account and login as "allard". Then
+execute:
+
+$
+git clone https://github.com/aberends/clone_vm.git
+
+Next we execute the script:
+
+$
+cd clone_vm
+./create_tpl_vm.sh
+
+We use the following commands:
+
+- ansible
+- ansible-playbook
+- guestfish
+- jinja2
+- virsh
+- virt-clone
+- virt-manager
+- virt-resize
+- virt-xml
+- wget
+
+In the CentOS7 yum repositories a number of groups related
+to virtualization exist. They can be found with the
+following command:
+
+# yum group list ids hidden | grep -i virtualization
+   Virtualization Host (virtualization-host-environment)
+   Virtualization Hypervisor (virtualization-hypervisor)
+   Virtualization Tools (virtualization-tools)
+   Virtualization Client (virtualization-client)
+   Virtualization Platform (virtualization-platform)
+
+We install the groups with:
+
+# yum group install virtualization-host-environment virtualization-hypervisor virtualization-tools virtualization-client virtualization-platform
+
+We check if we have all the commands we need:
+
+# for i in guestfish virsh virt-clone virt-manager virt-resize virt-xml; do which $i; done
+/usr/bin/which: no guestfish in (/usr/local/sbin:/sbin:/bin:/usr/sbin:/usr/bin:/root/bin)
+/bin/virsh
+/bin/virt-clone
+/bin/virt-manager
+/usr/bin/which: no virt-resize in (/usr/local/sbin:/sbin:/bin:/usr/sbin:/usr/bin:/root/bin)
+/bin/virt-xml
+
+So we are missing guestfish and virt-resize commands. In
+which packages do these commands reside?
+
+# yum provides '*/guestfish'
+.. truncated ..
+libguestfs-tools-c
+
+BTW, in the output we also see the package
+libguestfs-bash-completion, which is of interest.
+
+# yum provides '*/virt-resize'
+.. truncated ..
+libguestfs-tools-c
+
+So, do these packages reside in groups of interest? To query
+yum groups for packages we first need to install a yum
+plugin:
+
+# yum -y install yum-plugin-list-data
+
+Now we can query for the packages to find out if they reside
+in yum groups:
+
+# yum list-groups libguestfs-tools-c 
+Loaded plugins: fastestmirror, langpacks, list-data
+Loading mirror speeds from cached hostfile
+ * base: mirror.yourwebhoster.eu
+ * epel: ams.edge.kernel.org
+ * extras: centos.mirror.triple-it.nl
+ * updates: centos.mirror.triple-it.nl
+==================== Available Packages ====================
+Virtualization Client      1 ( 50%)
+Virtualization Tools       1 ( 50%)
+list-groups done
+
+We already installed both groups. So why don't we have
+libguestfs-tools-c? We look for information about the groups
+with:
+
+# yum group info 'Virtualization Client'
+# yum group info 'Virtualization Tools'
+
+It turns out that libguestfs-tools-c is listed as optional
+in both 'Virtualization Client' and 'Virtualization Tools'.
+
+We install the optional packages of both groups with:
+
+# yum --setopt=group_package_types=optional -y group install 'Virtualization Client' 'Virtualization Tools'
+
+Alas, the command does not work. Even setting the following
+line in our "[main]" section of yum.conf does not work:
+
+# grep group_package_types /etc/yum.conf
+group_package_types=default, mandatory, optional
+
+So, we install the package with a normal install:
+
+yum -y install libguestfs-tools-c
+
+In order to do some automatic configuration, we also need
+ansible:
+
+yum -y install ansible
+
+For testing of jinja2 templates (used by Ansible) on the
+command line, we install:
+
+yum -y install python2-pip
+pip install jinja2-cli
+
+
+VIRTUALIZATION_SERVICE
+
+In order to use KVM, the virtualization service must run.
+Hence we configure:
+
+#
+systemctl enable libvirtd.service
+systemctl start libvirtd.service
+systemctl is-active libvirtd.service
+# shows "active"
+systemctl is-enabled libvirtd.service
+# shows "enabled"
+
+Make sure the default network is setup and starts at boot
+time:
+
+# virsh net-list --autostart
+ Name                 State      Autostart     Persistent
+----------------------------------------------------------
+ default              active     yes           yes
+
+To figure out the IPv4 range of the default network:
+
+# virsh net-dumpxml default
+<network>
+  <name>default</name>
+  <uuid>19828e4a-4081-4a40-8717-cc046cb82e3a</uuid>
+  <forward mode='nat'>
+    <nat>
+      <port start='1024' end='65535'/>
+    </nat>
+  </forward>
+  <bridge name='virbr0' stp='on' delay='0'/>
+  <mac address='52:54:00:3d:26:fc'/>
+  <ip address='192.168.122.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='192.168.122.2' end='192.168.122.254'/>
+    </dhcp>
+  </ip>
+</network>
+
+To see the status of the virtual bridge of the default
+network:
+
+# ip -4 addr show dev virbr0
+4: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default qlen 1000
+    inet 192.168.122.1/24 brd 192.168.122.255 scope global virbr0
+       valid_lft forever preferred_lft forever
+
+The NO-CARRIER means that the bridge is not connected to a
+medium.
+
+Physical network interfaces have a different set of flags.
+Notably the LOWER_UP flag. See netdevice(7). It means that a
+cable is connected to the ethernet port. For example:
+
+# ip -4 addr show dev enp0s31f6
+2: enp0s31f6: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    inet 192.168.178.62/24 brd 192.168.178.255 scope global noprefixroute dynamic enp0s31f6
+       valid_lft 2686sec preferred_lft 2686sec
+
+The virb0 device is a virtual device. Hence it cannot be
+connected to a cable and show the state LOWER_UP. The
+states NO-CARRIER and LOWER_UP are opposites.
+
+
+ENABLE_VIRT_MANAGER
+
+From another machine we use SSH to log in on our laptop
+running KVM with the libvirtd service. Under a standard
+user, we try to run virt-manager:
+
+$ virt-manager
+$
+(virt-manager:29390): Gtk-WARNING **: 14:27:03.938: cannot open display:
+^C
+
+To solve this issue, log in over SSH with the "-X" flag. The
+first time we get the warning:
+
+/usr/bin/xauth:  file /home/allard/.Xauthority does not exist
+
+We can ignore it. It means that xauth has created the
+.Xauthority file for the user.
+
+Now we use virt-manager again and it works but gives a
+warning. What does the warning mean?
+
+If we use virt-manager on the laptop directly, a security
+pop-up modal window is shown. The word "modal" means that
+the pop-up window takes over control. So either you provide
+the information or you cancel the operation, but you can not
+do anything else on the GUI. This is what a modal window
+means.
+
+Being logged in over SSH means that the policy-kit cannot
+pop-up the modal window and ask the user for a password. So,
+we need to tell policy-kit to allow the user to run
+virt-manager. It is done like this:
+
+# usermod -a -G libvirt allard
+
+Now the user allard can run virt-manager directly on the
+laptop withouth having to answer the pop-up window.
+Furthermore, since the pop-up is not launched any longer,
+the user can also start virt-manager over SSH with the "-X"
+for X11 forwarding option.
+
+
+DOWNLOAD_ISO
+
+In this section we describe how to setup a CentOS7 template.
+This template is used to clone from to create a new Virtual
+Machine.
+
+The CentOS7 template is a CentOS7 VM that is shrunk after
+installation. The first step is to install a VM.
+
+We need the CentOS7 minimal installation ISO for this task:
+
+$
+# Go to clone_vm inside the home directory of the user.
+cd ~/clone_vm
+# Obtain the ISO redirect URL from CentOS for the minimal
+# install.
+URL=$(curl -s https://www.centos.org/download/ | grep -o 'http://.*-x86_64-Minimal-.*\.iso')
+# Obtain the ISO file.
+ISOFILE=$(echo $URL | sed 's#.*/##')
+# Check if the ISO is already downloaded in the home
+# directory of the user. If not, remove old ISO's and
+# download new one.
+[ -f "$ISOFILE" ] || { rm -f *-x86_64-Minimal-*.iso; wget $URL; }
+
+During the installation virt-manager shows a pop-up with the
+question: The emulator may not have search permissions for
+the path ... Do you want to correct this now?
+
+If you say yes, the installer executes setfacl to correct
+the permissions. We do it on the command line to avoid this
+pop-up altogether:
+
+$ setfacl -m u:qemu:x .
+
+Note, if you want to experiment with the ACL, it can be
+removed with:
+
+$ setfacl -x u:qemu: .
+
+Calculate the MAC address:
+
+$ printf "52:54:%2.2x:%2.2x:%2.2x:%2.2x\n" 192 168 122 3
+52:54:c0:a8:7a:03
+
+
+VIRT_INSTALL
+
+Obtain possible OS variants that can be used in KVM:
+
+# osinfo-query os | grep -i centos
+.. centos7.0 is what we use ..
+
+All variables we use:
+
+OS_VARIANT="centos7.0"
+VG="os"
+DOMAIN=tpl004
+SIZE_MIB=$((5*1024))
+NET_PART="192 168 122"
+NET_NAME="default"
+OCTET="4"
+MEMORY_MIB=1024
+DESCRIPTION="CentOS7 template"
+# Assumption is that we only have 1 Minimal CentOS7 ISO.
+ISO_PATH=/home/allard/clone_vm/CentOS-7-x86_64-Minimal-*.iso
+KICKSTART_PATH=/home/allard/clone_vm/$DOMAIN.ks
+MAC=$(printf "52:54:%2.2x:%2.2x:%2.2x:%2.2x" $NET_PART $OCTET)
+
+Prior to installation a storage volume for the VM is needed.
+We give it the name of the domain, i.e. tpl004 and the size
+of 5 GiB. Older installations of the VM are completely
+removed:
+
+#
+virsh destroy $DOMAIN
+virsh undefine $DOMAIN
+virsh vol-delete $DOMAIN $VG
+virsh vol-create-as $VG $DOMAIN ${SIZE_MIB}m
+
+The kickstart file is:
+
+$ cat << _EOF_ > $KICKSTART_PATH
+# System authorization information
+auth --enableshadow --passalgo=sha512
+# Use CDROM installation media
+cdrom
+# Add CentOS7 base repo. Note, the variables can be
+# discovered by using the following command on a running
+# CentOS7 system:
+# yum --setopt=ui_repoid_vars=id,releasever,basearch,infra repolist
+#repo --name=base --mirrorlist=http://mirrorlist.centos.org/?release=\$releasever&arch=\$basearch&repo=os&infra=\$infra
+repo --name=base --mirrorlist=http://mirrorlist.centos.org/?release=7&arch=x86_64&repo=os&infra=stock
+# Use text install.
+text
+# Don't run the Setup Agent on first boot.
+firstboot --disable
+ignoredisk --only-use=vda
+# Keyboard layouts
+keyboard --vckeymap=us --xlayouts='us'
+# System language
+lang en_US.UTF-8
+
+# Network information
+network --bootproto=static --device=eth0 --gateway=192.168.122.1 --ip=192.168.122.$OCTET --nameserver=8.8.4.4,8.8.8.8 --netmask=255.255.255.0 --ipv6=auto --activate
+network --hostname=$DOMAIN.home.org
+
+# Root password
+rootpw --iscrypted \$6\$VqpnR1p7fX77VP1I\$y2bB8RshiFXMAgzHed4RIaZUR1ny8GnXGCCw8uHRItsvx/xsnqsx0X/YMwIuRfKKmBQ5FCeTUkP9mnXDzri9u1
+# System services
+services --enabled="chronyd"
+# System timezone
+timezone Europe/Amsterdam --isUtc --nontp
+# System bootloader configuration.
+zerombr
+bootloader --append=" crashkernel=auto" --location=mbr --boot-drive=vda
+# Partition clearing information
+clearpart --drives=vda --all --initlabel
+# Disk partitioning information
+# AB: set the boot partition to a fixed size. 512 MiB is
+# more than enough for initial CentOS7 installations.
+part /boot --fstype="xfs" --ondisk=vda --size=512
+# AB: the remainder of the disk is dedicated to the os VG.
+part pv.157 --fstype="lvmpv" --ondisk=vda --size=1 --grow
+volgroup $VG --pesize=4096 pv.157
+logvol swap --fstype="swap" --size=511 --name=swap --vgname=$VG
+# AB: the remainder of the VG is dedicated to the root
+# filesystem.
+logvol / --fstype="xfs" --size=1 --grow --name=root --vgname=$VG
+# AB: poweroff the system to give us a change to
+# persistently remove the CDROM.
+poweroff
+
+# AB: the minimum packages specification (@^minimal, @core
+# and kexec-tools) is enlarged with packages we always need.
+%packages
+@^minimal
+@core
+kexec-tools
+bash-completion
+mlocate
+tcpdump
+telnet
+tree
+vim-enhanced
+wget
+xfsdump
+yum-utils
+%end
+
+%addon com_redhat_kdump --enable --reserve-mb='auto'
+%end
+
+%post --log=/root/ks-post.log
+echo post log test
+%end
+
+%anaconda
+pwpolicy root --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+pwpolicy user --minlen=6 --minquality=1 --notstrict --nochanges --emptyok
+pwpolicy luks --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+%end
+_EOF_
+
+Information is given in virt-install(1). The options are in
+the order of virt-install(1).
+
+virt-install \
+  --connect qemu:///system \
+  --name=$DOMAIN \
+  --memory=$MEMORY_MIB \
+  --arch=x86_64 \
+  --metadata=description="$DESCRIPTION" \
+  --vcpus=vcpus=1 \
+  --location=$ISO_PATH \
+  --extra-args="ks=file:/$DOMAIN.ks console=ttyS0,115200 inst.sshd" \
+  --initrd-inject=$KICKSTART_PATH \
+  --os-variant="$OS_VARIANT" \
+  --boot=hd \
+  --disk=vol=os/$DOMAIN,device=disk,bus=virtio \
+  --network=network=$NET_NAME,mac=$MAC \
+  --graphics=none \
+  --noautoconsole \
+  --hvm \
+  --autostart
+
+Note, the option "--noautoconsole" tells virt-install not to
+connect to the console. This way we stay disconnected from
+the VM.
+
+In the option "--extra-args" we specify "inst.sshd" to
+enable an sshd during installation. You can connect to it as
+root without password using the IPv4 address configured in
+the kickstart file.
+
+We need to wait until the installation is finished. We can
+detect the completion of the installation with the command:
+
+# watch -n 1 "virsh domstate $DOMAIN"
+.. "running" during installation ..
+.. "shut off" after installation ..
+
+After the installation we want to remove the CDROM drive. To
+accomplish this, we use:
+
+# virt-xml $DOMAIN --remove-device --disk device=cdrom
+Domain 'tpl004' defined successfully.
+
+The "--autostart" start option was used. But for some reason
+it does not mark the VM for autostart. When we don't use the
+option "--noautoconsole" the option "--autostart" does work.
+Anyway, we need to set it to autostart again:
+
+# virsh autostart $DOMAIN
+
+To start the VM:
+
+# virsh start $DOMAIN
+
+
+SHRINK_VM_DISK
+
+What if we create the disk for the VM via lvcreate?
+
+We do a test:
+
+# lvcreate -n tst001 os -L 5g
+  Logical volume "tst001" created.
+
+# lvs os/tst001
+  LV     VG Attr       LSize Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  tst001 os -wi-a----- 5.00g
+
+# virsh vol-list os
+.. no tst001 in the output ..
+
+So, we need to create the disk via "virsh vol-create-as".
+
+Next, we create a data disk on the host and attach it to the
+VM:
+
+#
+# AB: note 2GiB (2g) is assumed to be more than enough to
+# contain the XFS dumps.
+virsh vol-delete data $VG
+virsh vol-create-as $VG data 2g
+virsh attach-disk $DOMAIN /dev/$VG/data vdb
+
+Log in on the VM:
+
+# ssh -l root 192.168.122.4
+
+Create filesystem, mount it and dump the other filesystems
+on it:
+
+#
+mkfs.xfs -f /dev/vdb
+mkdir /mnt/data
+mount /dev/vdb /mnt/data
+xfsdump -L '' -M '' -f /mnt/data/rootfs /
+xfsdump -L '' -M '' -f /mnt/data/bootfs /boot
+
+Calculate the sizes expressed in MiB (--block-size=1M)
+
+#
+BOOTSIZE=$(ls -l --block-size=1M /mnt/data/bootfs | awk '{ print $5 }')
+ROOTSIZE=$(ls -l --block-size=1M /mnt/data/rootfs | awk '{ print $5 }')
+SIZE=$(( $BOOTSIZE + 20 + $ROOTSIZE + 100 ))
+
+How to figure out to what VM a previous tpl LV is attached?
+
+#
+TPL_ATTACHED=$(virsh list --name --all | head -n -1 | while read line; do dummy=$(virsh domblklist $line | tail -n +3 | head -n -1 | grep tpl); [ -n "$dummy" ] && echo "$line $dummy"; done)
+[ -n "$TPL_ATTACHED" ] && virsh detach-disk ${TPL_ATTACHED%% *} ${TPL_ATTACHED##* }
+
+On the host create a new disk of the calculated size:
+
+# virsh vol-create-as $VG tpl ${SIZE}M
+
+Attach the new (small) disk to the VM:
+
+# virsh attach-disk $DOMAIN /dev/os/tpl vdc
+
+Log in, partition the new disk and put filesystems on the
+partitions:
+
+#
+parted -s /dev/vdc "unit MiB mklabel msdos mkpart primary 0% ${BOOTSIZE}MiB set 1 boot on mkpart primary ${BOOTSIZE}MiB 100%"
+mkfs.xfs -f /dev/vdc1
+pvcreate --yes -ff /dev/vdc2
+vgcreate tpl /dev/vdc2
+lvcreate --yes -n swap -l 2 tpl
+lvcreate --yes -n root -l 100%VG tpl
+mkfs.xfs -f /dev/tpl/root
+
+Now, mount the new filesystems and restore the original boot
+and root filesystems on them:
+
+#
+mkdir /tmp/{boot,root}
+mount /dev/tpl/root /tmp/root
+xfsrestore -f /mnt/data/rootfs /tmp/root
+mount /dev/vdc1 /tmp/root/boot
+xfsrestore -f /mnt/data/bootfs /tmp/root/boot
+mount --bind /dev /tmp/root/dev
+mount --bind /dev/pts /tmp/root/dev/pts
+mount --bind /proc /tmp/root/proc
+mount --bind /sys /tmp/root/sys
+chroot /tmp/root
+
+Correct information to make the shrunk disk boot:
+
+#
+sed -i -e 's#=[^ ]*/root#=tpl/root#' \
+       -e 's#=[^ ]*/swap#=tpl/swap#' /etc/default/grub
+grub2-install /dev/vdc
+grub2-mkconfig > /boot/grub2/grub.cfg
+BOOT_UUID=$(blkid /dev/vdc1 -o value -s UUID)
+sed -i -e "s/UUID=[^ ]\+ /UUID=$BOOT_UUID /" \
+       -e 's#/[^-/]\+-root#/tpl-root#' \
+       -e 's#/[^-/]\+-swap#/tpl-swap#' /etc/fstab
+#sed -i -e 's/^orig7.home.org/tpl7.home.org/' /tmp/root/etc/hostname
+mkswap /dev/tpl/swap
+
+
+UNATTENDED_CONFIGURATION_WITH_ANSIBLE

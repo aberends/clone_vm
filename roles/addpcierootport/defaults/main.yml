@@ -1,0 +1,13 @@
+---
+  
+# AB: note, instead of using '~', we use the more complex
+# setup of using:
+#   default(lookup(''env'', ''HOME'') + "/clone_vm")
+# The reason is that if we leave '~' it is evaluated per
+# task. So, if a task is run with become=true, then the '~'
+# is evaluated to '/root' instead of '/USER/HOMEDIR'. Since
+# we run the play under a normal user, looking up the HOME
+# environment variable does work.
+# AB: the software is located in a certain directory. The
+# default value is set here.
+#addpcierootport_clone_vm_dir: '{{ create_tpl_vm_dir|default(lookup(''env'', ''HOME'') + "/clone_vm") }}'

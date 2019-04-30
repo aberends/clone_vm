@@ -1,0 +1,6 @@
+---
+
+# AB: the name of the VG used as the pool for KVM volumes.
+# We use jinja2 logic in the variable assignment in order to
+# have an if-then-else decision tree at our disposal.
+cleanupvm_vg: '{% if preparekvm_vg_info is defined %}{{ preparekvm_vg_info.stdout|default("")}}{% else %}{% endif %}'

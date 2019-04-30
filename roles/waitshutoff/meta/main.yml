@@ -1,0 +1,9 @@
+---
+
+# AB: since a VM needs to be powered down several times when
+# we install it and create a template from it, we need to be
+# able to wait for it to be "shut off" (virsh domstate
+# domain). This role carries out this task. We need to
+# specify allow_duplicates=true here, because this role
+# needs to run several times in a play.
+allow_duplicates: true

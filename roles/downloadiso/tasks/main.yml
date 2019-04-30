@@ -1,0 +1,38 @@
+---
+
+- name: Download new distribution ISO and remove old ones
+  block:
+    # AB: TODO: have a look at the uri module with
+    # "return_content".
+  - name: Obtain URL of the Minimal distribution install ISO
+    shell: curl -s {{ downloadiso_distribution_url }} | grep -o '{{ downloadiso_url_pattern }}'
+    args:
+      # AB: warn=false is needed to suppress the warning
+      # about curl usage.
+      warn: false
+    register: _url_info
+    # AB: use "changed_when=false" to suppress the changed
+    # status in the Ansible run.
+    changed_when: false
+
+  - name: Download latest distribution ISO onto the KVM host
+    vars:
+      url: "{{ _url_info.stdout }}"
+      iso_file: "{{ url | regex_replace('^.*/') }}"
+    shell: "rm -f {{ downloadiso_iso_pattern }}; wget {{ url }}"
+    args:
+      # AB: warn=false is needed to suppress message about
+      # rm usage. Using file module with state is absent
+      # seems too elaborate for this case.
+      warn: false
+      chdir: "{{ downloadiso_clone_vm_dir }}"
+      creates: "{{ iso_file }}"
+    # AB: registration of the result is needed because
+    # other roles only execute if an ISO was downloaded. So
+    # they need to know if the download_iso_info.changed is
+    # true.
+    register: downloadiso_info
+  delegate_to: localhost
+  # AB: the ISO is the same for all possible template VM's
+  # so we only run once.
+  run_once: true

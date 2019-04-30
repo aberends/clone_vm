@@ -1,0 +1,4 @@
+---
+
+- name: Stop the play
+  meta: end_play

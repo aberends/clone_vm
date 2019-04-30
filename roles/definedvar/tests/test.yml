@@ -1,0 +1,6 @@
+---
+
+- name: Test definedvar role
+  hosts: all
+  roles:
+  - role: definedvar

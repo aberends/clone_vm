@@ -1,0 +1,154 @@
+---
+
+# AB: the algorithm to determine what VG to use as the
+# storage pool from which we pull volumes to create the
+# template machine is as follows:
+# - use user specified pool if defined
+# - use "distribution" VG, e.g. fedora or centos if it
+#   exists and has more than 9GiB (4 + 2 + 2 + 1) of
+#   free space
+# - use other VG with largest amount of free space
+# To execute this algorithm we need to gather the
+# information first, which is done by the setup task, run as
+# root to include the LVM2 information.
+
+- name: Determine suitable VG as storage pool
+  block:
+  - name: Gather facts about KVM host
+    setup:
+    # AB: we need information about LVM2, so we need to become
+    # root (default become user).
+    become: true
+
+  - name: Copy the jq filter script
+    vars:
+      filename: select_vg.jq
+    copy:
+      src: files/{{ filename }}
+      # AB: by default the variable preparekvm_clone_vm_dir
+      # contains a relative path, prepended with "~".
+      # Consequently we must run this task under a normal
+      # user. Otherwise Ansible tries to copy things to
+      # /root/clone_vm/, which does not exist and yields an
+      # error.
+      dest: "{{ preparekvm_clone_vm_dir }}/{{ filename }}"
+      mode: 0755
+
+  - name: Get the VG information for the storage pool
+    # AB: the JSON object of Ansible facts must be placed in
+    # single quotes to protect it from the shell.
+    shell: >
+      echo '{{ ansible_facts | to_json }}' |
+      ./select_vg.jq
+      --arg user_specified_vg "{{ preparekvm_user_specified_vg }}"
+      --argjson minimum_gib "{{ preparekvm_min_gib }}"
+    args:
+      chdir: "{{ preparekvm_clone_vm_dir }}"
+    register: preparekvm_vg_info
+    changed_when: false
+
+  - name: Show the VG name for the storage pool
+    debug:
+      msg: VG "{{ preparekvm_vg_info.stdout }}" chosen as storage pool
+    failed_when: preparekvm_vg_info.stdout == ""
+
+  - name: Get the the devices of the VG
+    # AB: the JSON object of Ansible facts must be placed in
+    # single quotes to protect it from the shell.
+    shell: >
+      echo '{{ ansible_facts | to_json }}' |
+      jq '.lvm.pvs | [to_entries[] | select(.value.vg == "{{ preparekvm_vg_info.stdout }}") | .key]'
+    args:
+      chdir: "{{ preparekvm_clone_vm_dir }}"
+    register: _devices_info
+    changed_when: false
+
+  - name: Show the devices of the VG
+    debug:
+      # AB: surround the value of "msg" by single quotes
+      # here. Otherwise the YAML interpreter gets confused
+      # by a string that starts with curly braces.
+      msg: '"{{ _devices_info.stdout }}" chosen as device(s)'
+  # AB: we are only interested in the facts about the KVM
+  # host, which is the local machine. Hence, the task is
+  # delegated to the localhost and only runs once.
+  delegate_to: localhost
+  run_once: true
+
+- name: Prepare KVM host
+  vars:
+    preparekvm_pool_vg: "{{ preparekvm_vg_info.stdout }}"
+    preparekvm_pool_devices: "{{ _devices_info.stdout }}"
+  block:
+  - name: Install necessary software on KVM host
+    yum:
+      name:
+      - '@virtualization'
+      - libguestfs
+      - libguestfs-xfs
+      - libguestfs-zfs
+      - libguestfs-jfs
+      - nmap
+      - python2-libguestfs
+      - python2-libvirt
+      - python2-lxml
+      - python3-libguestfs
+      - python3-libvirt
+      - python3-lxml
+      - libguestfs-tools
+      - libguestfs-tools-c
+      - libguestfs-rescue
+      - libselinux-python
+      - wget
+      state: present
+
+  - name: Enable the libvirtd service
+    service:
+      name: libvirtd
+      state: started
+
+    # AB: ansible needs to be able to ssh to the VM used as
+    # template. Hence, its IPv4 address must be in the
+    # /etc/hosts file. Since we don't use DNS at this point
+    # ansible has no other way of resolving.
+  - name: Adapt /etc/hosts for host
+    vars:
+      ipv4: "192.168.122.{{ inventory_hostname | regex_replace('^...0*') }}"
+      ipv4re: "192\\.168\\.122\\.{{ inventory_hostname | regex_replace('^...0*') }}"
+      hostname: '{{ inventory_hostname }}.home.org'
+      line: "{{ '%-15.15s  %s %s'|format(ipv4, hostname, inventory_hostname) }}"
+    lineinfile:
+      path: /etc/hosts
+      regexp: '^{{ ipv4re }}'
+      line: '{{ line }}'
+      state: present
+
+  - name: Allow user qemu to access the home directory
+    acl:
+      path: "{{ lookup('env', 'HOME') }}"
+      entity: qemu
+      etype: user
+      permissions: x
+      state: present
+
+  - name: Define the storage pool
+    virt_pool:
+      command: define
+      name: '{{ preparekvm_pool_vg }}'
+      xml: '{{ lookup("template", "templates/pool.xml.j2") }}'
+      autostart: true
+
+  - name: Set the storage pool to autostart
+    virt_pool:
+      name: '{{ preparekvm_pool_vg }}'
+      autostart: true
+
+  - name: Start the storage pool
+    virt_pool:
+      name: '{{ preparekvm_pool_vg }}'
+      state: active
+      autostart: true
+  become: true
+  delegate_to: localhost
+  # AB: this role only needs to be run on the KVM host.
+  run_once: true

@@ -1,0 +1,12 @@
+---
+
+# AB: to give the boot disk some extra space to operate we
+# add some MiB to its calculated size.
+createtemplatedisk_add_boot_mb: 20
+
+# AB: to give the root disk some extra space to operate we
+# add some MiB to its calculated size.
+createtemplatedisk_add_root_mb: 100
+
+# AB: the name of the VG used as the pool for KVM volumes.
+createtemplatedisk_vg: '{% if preparekvm_vg_info is defined %}{{ preparekvm_vg_info.stdout|default("")}}{% else %}{% endif %}'

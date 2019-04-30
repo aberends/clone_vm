@@ -1,0 +1,45 @@
+---
+
+- name: Verify if a VG is given
+  debug:
+    msg: 'VG given: {{ createdatadisk_vg }}'
+  failed_when: createdatadisk_vg == ""
+
+- name: Ensure clean data disk is created
+  block:
+  - name: Find domain if data disk attached to VM
+    # AB: first we find all defined domains and remove the
+    # title line. Then we list all block devices per domain
+    # and grep for the device called dDOMAIN.
+    # Sample output:
+    # tpl003 vda        /dev/centos/dtpl003
+    shell: virsh list --name --all | head -n -1 | while read line; do dummy=$(virsh domblklist $line | tail -n +3 | head -n -1 | grep d{{ inventory_hostname }}); [ -n "$dummy" ] && echo "$line $dummy"; done
+    register: _attached_domain_info
+    failed_when: false
+    changed_when: false
+
+    # AB: say the sample input is:
+    # tpl003 vda        /dev/centos/dtpl003
+    # Below we show what the different variables equate to.
+  - name: Detach data disk from domain
+    vars:
+      # tpl003 vda        /dev/centos/dtpl003 -> tpl003
+      domain: "{{ _attached_domain_info.stdout | regex_replace(' .*') }}"
+      # tpl003 vda        /dev/centos/dtpl003 -> /dev/centos/dtpl003
+      volume: "{{ _attached_domain_info.stdout | regex_replace('^.* +') }}"
+      # tpl003 vda        /dev/centos/dtpl003 -> vda
+      disk: "{{ _attached_domain_info.stdout | regex_replace('^.* +([^ ]+) +.*$', '\\1') }}"
+    command: virsh detach-disk {{ domain }} {{ volume }}
+    when: _attached_domain_info.stdout != "" 
+
+  - name: Delete data disk
+    command: virsh vol-delete d{{ inventory_hostname }} {{ createdatadisk_vg }}
+    args:
+      removes: /dev/{{ createdatadisk_vg }}/d{{ inventory_hostname }}
+
+  - name: Create new data disk
+    command: virsh vol-create-as {{ createdatadisk_vg }} d{{ inventory_hostname }} 2g
+    args:
+      creates: /dev/{{ createdatadisk_vg }}/d{{ inventory_hostname }}
+  become: true
+  delegate_to: localhost

@@ -1,0 +1,26 @@
+---
+
+- name: Make sure VM has SSH connection
+  wait_for:
+    port: 22
+    host: "{{ inventory_hostname }}"
+    # AB: started means that the port is open
+    state: started
+    # AB: 5s before closing the connection and retry.
+    connect_timeout: 5
+    # AB: the timeout tells wait_for when to stop trying.
+    # So, if set to 20s wait_for in this case:
+    # - polls port 22
+    # - waits 5s
+    # - polls port 22
+    # - waits 5s
+    # - polls port 22
+    # - waits 5s
+    # - polls port 22
+    # - waits 5s
+    # - polls port 22 (depends how timeout is exactly
+    # measured)
+    # So, if the timeout is set to 21s wait_for tries 5
+    # times to figure out if port 22 is open.
+    timeout: "{{ testssh_timeout_in_s }}"
+  delegate_to: localhost

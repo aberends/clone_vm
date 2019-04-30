@@ -1,0 +1,7 @@
+---
+
+- name: Test dumppartitions role
+  hosts: all
+  gather_facts: false
+  roles:
+  - role: dumppartitions

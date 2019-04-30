@@ -1,0 +1,10 @@
+---
+
+- name: Figure out VG to use
+  hosts: localhost
+  become: true
+  tasks:
+  - name: Information about VG's
+    debug:
+      msg: "{{ item.key }}: {{ item.value.free_g }}"
+    loop: "{{ ansible_lvm.vgs|dict2items }}"

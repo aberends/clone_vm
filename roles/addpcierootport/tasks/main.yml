@@ -1,0 +1,50 @@
+---
+
+- name: Add pcie-root-port if KVM has new machine type
+  block:
+  - name: Determine if machine type is pc-q35
+    command: grep -q pc-q35 {{ vm_xml }}
+    register: _is_q35_info
+    changed_when: false
+    failed_when: false
+    become: true
+
+#  - name: Create xslt template to calculate new index
+#    vars:
+#    copy:
+#      src: files/{{ filename }}
+#      dest: '{{ stylesheet }}'
+#    when: _is_q35_info.rc == 0
+
+#  - name: Calculate the index of the new pcie-root-port controller
+#    command: xsltproc {{ stylesheet }} {{ vm_xml }}
+#    register: _new_index
+#    when: _is_q35_info.rc == 0
+#    become: true
+
+    # AB: at this point we did not figure out a reliable way
+    # to calculate if we need to act a pcie-root-port. So,
+    # by manual testing we have figured out that we need to
+    # add one with index='8'.
+  - name: Determine if index 8 pcie-root-port is present
+    command: grep -q "index='8' model='pcie-root-port'" {{ vm_xml }}
+    register: _has_index8_info
+    changed_when: false
+    failed_when: false
+    become: true
+
+    # AB: for the newer machine pc-q35, for example
+    # "pc-q35-3.0", we need to add an extra pcie-root-port
+    # controller. Otherwise we can only hotplug 1 extra
+    # disk. Since we add a data disk and a template disk, we
+    # need to be able to hotplug at least 2 disks.
+  - name: Add PCI express root port
+    command: virt-xml {{ inventory_hostname }} --add-device --controller type=pci,model=pcie-root-port,index=8
+    when: _is_q35_info.rc == 0 and _has_index8_info.rc == 1
+    become: true
+  # AB: vars for a block must be located at the bottom.
+  vars:
+    vm_xml: /etc/libvirt/qemu/{{ inventory_hostname }}.xml
+    #filename: max_index.xsl
+    #stylesheet: '{{ addpcierootport_clone_vm_dir }}/{{ filename }}'
+  delegate_to: localhost

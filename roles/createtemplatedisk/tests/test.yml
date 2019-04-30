@@ -1,0 +1,7 @@
+---
+
+- name: Test createtemplatedisk role
+  hosts: all
+  gather_facts: false
+  roles:
+  - role: createtemplatedisk

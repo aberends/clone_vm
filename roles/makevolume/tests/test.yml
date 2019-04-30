@@ -1,0 +1,7 @@
+---
+
+- name: Test makevolume role
+  hosts: all
+  gather_facts: false
+  roles:
+  - role: makevolume

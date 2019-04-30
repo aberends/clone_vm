@@ -1,0 +1,19 @@
+- name: Test user variable
+  hosts: all
+  connection: local
+  gather_facts: false
+
+  tasks:
+  - name: Calculate MAC address
+    vars:
+      octet: "{{ inventory_hostname | regex_replace('^...0*') }}"
+    command: printf "52:54:%2.2x:%2.2x:%2.2x:%2.2x" 192 168 122 {{ octet }}
+    register: _mac_info
+    changed_when: false
+    failed_when: octet|int > 254 or octet|int < 2
+    delegate_to: localhost
+
+  - name: Calculate MAC address
+    debug:
+      msg: 'mac address: {{ _mac_info.stdout }}'
+    delegate_to: localhost

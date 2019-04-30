@@ -1,0 +1,7 @@
+---
+
+- name: Test makebindmounts role
+  hosts: all
+  gather_facts: false
+  roles:
+  - role: makebindmounts

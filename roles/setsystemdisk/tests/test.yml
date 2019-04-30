@@ -1,0 +1,7 @@
+---
+
+- name: Test setsystemdisk role
+  hosts: all
+  gather_facts: false
+  roles:
+  - role: setsystemdisk

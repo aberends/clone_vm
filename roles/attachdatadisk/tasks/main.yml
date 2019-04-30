@@ -1,0 +1,20 @@
+---
+
+- name: Verify if a VG is given
+  debug:
+    msg: 'VG given: {{ attachdatadisk_vg }}'
+  failed_when: attachdatadisk_vg == ""
+
+- name: Attach data disk to domain if not attached
+  block:
+  - name: Verify if data disk is attached to domain
+    shell: virsh domblklist {{ inventory_hostname }} | grep /dev/{{ attachdatadisk_vg }}/d{{ inventory_hostname }}
+    register: _block_list_info
+    changed_when: false
+    failed_when: false
+
+  - name: Attach data disk to domain
+    command: virsh attach-disk {{ inventory_hostname }} /dev/{{ attachdatadisk_vg }}/d{{ inventory_hostname }} vdb
+    when: _block_list_info.stdout == ""
+  become: true
+  delegate_to: localhost

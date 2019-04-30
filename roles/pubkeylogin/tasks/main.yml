@@ -1,0 +1,62 @@
+---
+# Starting from Ansible 2.8 a module openssh_keypair will
+# exist. More information at
+# https://docs.ansible.com/ansible/devel/modules/openssh_keypair_module.html
+# For now we generate our key pair with a ssh-keygen.
+
+- name: Manage VM's SSH host keys on KVM host
+  block:
+  - name: Make sure user has SSH keypair
+    command: ssh-keygen -f ~/.ssh/id_rsa -N ''
+    args:
+      creates: ~/.ssh/id_rsa
+
+    # AB: here we do the assumption that all hosts in the
+    # inventory are also in the /etc/hosts file on the KVM
+    # host. If this is not the case, later roles may fail
+    # badly, i.e. stop the play. For example, if we ssh
+    # directly to the IPv4 address of the host and it is not
+    # in the /etc/hosts file, the old host key is still
+    # present in ~/.ssh/known_hosts file and the SSH
+    # connection to a new instance of the domain fails
+    # because of it.
+  - name: Obtain IPv4 address of VM from /etc/hosts
+    command: awk "/{{ inventory_hostname }}/ {print $1}" /etc/hosts
+    register: _ipv4_host_info
+    changed_when: false
+
+  - name: Remove IPv4 based host key from known_hosts file
+    known_hosts:
+      name: "{{ item }}"
+      state: absent
+    loop:
+    - '{{ inventory_hostname }}'
+    - '{{ _ipv4_host_info.stdout }}'
+
+  - name: Obtain new host key
+    shell: ssh-keyscan -t ecdsa {{ inventory_hostname }}
+    register: _host_key_info
+    changed_when: false
+
+  - name: Add new host key to known_hosts file
+    known_hosts:
+      name: "{{ inventory_hostname }}"
+      state: present
+      key: "{{ _host_key_info.stdout }}"
+  delegate_to: localhost
+
+- name: Enable pubkey login
+  debug:
+    msg: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa.pub') }}"
+
+- name: Enable pubkey login
+  authorized_key:
+    user: root
+    state: present
+    key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa.pub') }}"
+  # AB: why do we need async and poll here? TODO: figure it
+  # out. For now keep them commented out. Probably it has to
+  # do with starting up a VM, having an SSH connection, but
+  # sshd not being ready.
+  #async: 3
+  #poll: 1

@@ -1,0 +1,16 @@
+---
+
+- name: Verify if a VG is given
+  debug:
+    msg: 'VG given: {{ makevolume_vg }}'
+  failed_when: makevolume_vg == ""
+
+  # AB: we use the naming convention that the system disk
+  # belonging to domain x is called x. Hence it comes up on
+  # the KVM host as /dev/VG/x. For example: /dev/VG/tpl003.
+- name: Create disk of VM
+  command: virsh vol-create-as {{ makevolume_vg }} {{ inventory_hostname }} {{ makevolume_size }}
+  args:
+    creates: /dev/{{ makevolume_vg }}/{{ inventory_hostname }}
+  become: true
+  delegate_to: localhost

@@ -1,0 +1,7 @@
+---
+
+- name: Show the mechanism of defining a variable
+  vars:
+    _definedvar_test: '{{ definedvar_test|default("default")}}'
+  debug:
+    msg: value is {{ _definedvar_test }}

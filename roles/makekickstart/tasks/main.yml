@@ -1,0 +1,25 @@
+---
+
+- name: Prepare kickstart file
+  block:
+  - name: Obtain KVM host timezone information
+    command: timedatectl show -p Timezone --value
+    register: _timezone_info
+    when: makekickstart_timezone is not defined
+    changed_when: false
+
+  - name: Verify timezone information
+    shell: timedatectl list-timezones | grep {{ makekickstart_timezone }}
+    register: _timezone_check
+    when: makekickstart_timezone is defined
+    changed_when: false
+
+  - name: Create kickstart file
+    vars:
+      tzone: '{% if makekickstart_timezone is defined %}{{ _timezone_check.stdout }}{% else %}{{ _timezone_info.stdout }}{% endif %}'
+    template:
+      # AB: the source is relative to
+      # makekickstart_clone_vm_dir.
+      src: templates/domain.ks.j2
+      dest: "{{ makekickstart_path }}"
+  delegate_to: localhost

@@ -1,0 +1,11 @@
+---
+
+- name: Test authorized_key
+  hosts: all
+  gather_facts: false
+  tasks:
+  - name: Check authorized_key module
+    authorized_key:
+      user: root
+      state: present
+      key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa.pub') }}"

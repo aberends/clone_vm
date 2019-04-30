@@ -1,0 +1,13 @@
+<pool type='logical'>
+  <name>{{ preparekvm_pool_vg }}</name>
+  <source>
+    {% for devpath in preparekvm_pool_devices %}
+    <device path='{{ devpath }}'/>
+    {% endfor %}
+    <name>{{ preparekvm_pool_vg }}</name>
+    <format type='lvm2'/>
+  </source>
+  <target>
+    <path>/dev/{{ preparekvm_pool_vg }}</path>
+  </target>
+</pool>

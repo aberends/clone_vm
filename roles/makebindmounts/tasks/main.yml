@@ -1,0 +1,25 @@
+---
+
+- name: Create root filesystem on template disk
+  vars:
+    bind_mounts:
+    - dev
+    - dev/pts
+    - proc
+    - sys
+    - run
+  block:
+  - name: Check for bind-mounts
+    command: mountpoint -q /tmp/root/{{ item }}
+    register: _bind_mounted_info
+    changed_when: false
+    failed_when: false
+    loop: "{{ bind_mounts }}"
+
+  - name: Bind-mount
+    command: mount --bind /{{ item.item }} /tmp/root/{{ item.item }}
+    args:
+      warn: false
+    when: item.rc == 1
+    loop: "{{ _bind_mounted_info.results }}"
+  become: true

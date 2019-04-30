@@ -1,0 +1,20 @@
+- name: Test creation of salted hash for root password
+  hosts: all
+  connection: local
+  gather_facts: false
+
+  tasks:
+  - name: Create salted hash
+    debug:
+      msg: "{{ 'redhat'|password_hash('sha512', 'VqpnR1p7fX77VP1I') }}"
+    delegate_to: localhost
+
+    # AB: in the kickstart file the '$' characters in the
+    # salted hash need to be escaped with a '\'.
+    # Furthermore, we always use the same salt to avoid
+    # having to update the kickstart file each time the task
+    # is run because of the randomness in password_hash.
+  - name: Create salted hash with dollars escaped
+    debug:
+      msg: "{{ 'redhat'|password_hash('sha512', 'VqpnR1p7fX77VP1I')|regex_replace('\\$', '\\$') }}"
+    delegate_to: localhost

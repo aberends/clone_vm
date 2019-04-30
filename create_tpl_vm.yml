@@ -1,0 +1,48 @@
+---
+
+- name: Create CentOS 7 VM
+  hosts: all
+  vars:
+    isochanged_skip: true
+  gather_facts: false
+  roles:
+  - preparekvm
+  - downloadiso
+  - isochanged
+  - cleanupvm
+  - makevolume
+  - makekickstart
+  - kickstartinstall
+  - waitshutoff
+  - removecdrom
+  - addpcierootport
+  - poweron
+  - testssh
+  - pubkeylogin
+  #- endplay
+  - createdatadisk
+  - attachdatadisk
+  - preparedatadisk
+  - mountdatadisk
+  - dumppartitions
+  - createtemplatedisk
+  - attachtemplatedisk
+    # AB: preparetemplatedisk depends on registered
+    # variables of createtemplatedisk.
+  - preparetemplatedisk
+  - restoreroot
+  - restoreboot
+  - makebindmounts
+  - configuresystemdisk
+  - poweroff
+  - waitshutoff
+  - setsystemdisk
+  - poweron
+    # AB: since we SELinux relabel the system it takes 2
+    # boot times and the time to relabel. So, we set
+    # testssh_timeout_in_s from 20s to 50s.
+  - role: testssh
+    vars:
+      testssh_timeout_in_s: 50
+  - poweroff
+  - waitshutoff

@@ -1,0 +1,11 @@
+---
+
+- name: Test addpcierootport role
+  hosts: all
+  gather_facts: false
+  tasks:
+  - name: Figure out home directory
+    vars:
+      homedir: '{{ non_existent|default(lookup(''env'', ''HOME'') + "/clone_vm") }}'
+    debug:
+      msg: 'home directory: {{ homedir }}'

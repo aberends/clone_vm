@@ -1,0 +1,7 @@
+---
+
+- name: Test removecdrom role
+  hosts: all
+  gather_facts: false
+  roles:
+  - role: removecdrom

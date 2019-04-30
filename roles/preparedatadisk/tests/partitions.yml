@@ -1,0 +1,9 @@
+---
+
+- name: Show partition table
+  hosts: all
+  gather_facts: false
+  tasks:
+  - name: blah
+    debug:
+      msg: '{{ ansible_facts.devices.vdb.partitions }}'

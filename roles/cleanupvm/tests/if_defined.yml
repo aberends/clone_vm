@@ -1,0 +1,15 @@
+---
+
+- name: Test cleanupvm role
+  hosts: all
+  vars:
+    othervar:
+      #stdout: centos
+    myvar: '{% if othervar is defined %}{{ othervar.stdout|default("oh") }}{% else %}""{% endif %}'
+  gather_facts: false
+  tasks:
+  - name: Test variable definition
+    debug:
+      msg:
+      - 'othervar: {{ othervar|default("") }}'
+      - 'myvar: {{ myvar|default("") }}'

@@ -1,0 +1,16 @@
+---
+
+# AB: the software is located in a directory. Its default
+# value is set here. Note that this role is not run under
+# "become". Consequently the "~" is expanded to the home
+# directory of the account under which the play is run.
+preparekvm_clone_vm_dir: '{{create_tpl_vm_dir|default("~/clone_vm")}}'
+
+# AB: the minimum amount of space expressed in GiB needed
+# from the VG to create the cloneable template machine.
+preparekvm_min_gib: '{{create_tpl_vm_min_gib|default(9)}}'
+
+# AB: if the user does not want the role to determine on
+# which VG the template VM is created, he can specify the VG
+# from the play or the --extra-vars option.
+preparekvm_user_specified_vg: '{{ create_tpl_vm_vg|default("")}}'

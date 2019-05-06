@@ -3,7 +3,10 @@
 - name: Prepare kickstart file
   block:
   - name: Obtain KVM host timezone information
-    command: timedatectl show -p Timezone --value
+    # AB: CentOS7 does not support show in timedatectl. So
+    # we use awk to work around it.
+    #command: timedatectl show -p Timezone --value
+    shell: timedatectl status | awk '/Time zone:/ {print $3}'
     register: _timezone_info
     when: makekickstart_timezone is not defined
     changed_when: false

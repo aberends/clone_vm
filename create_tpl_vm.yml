@@ -6,19 +6,19 @@
     isochanged_skip: true
   gather_facts: false
   roles:
-  - preparekvm
-  - downloadiso
-  - isochanged
-  - cleanupvm
-  - makevolume
-  - makekickstart
-  - kickstartinstall
-  - waitshutoff
-  - removecdrom
-  - addpcierootport
-  - poweron
-  - testssh
-  - pubkeylogin
+  #- preparekvm
+  #- downloadiso
+  #- isochanged
+  #- cleanupvm
+  #- makevolume
+  #- makekickstart
+  #- kickstartinstall
+  #- waitshutoff
+  #- removecdrom
+  #- addpcierootport
+  #- poweron
+  #- testssh
+  #- pubkeylogin
   #- endplay
   - createdatadisk
   - attachdatadisk

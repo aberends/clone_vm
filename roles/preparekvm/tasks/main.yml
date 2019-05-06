@@ -13,6 +13,8 @@
 # root to include the LVM2 information.
 
 - name: Determine suitable VG as storage pool
+  vars:
+    filename: select_vg.jq
   block:
   - name: Gather facts about KVM host
     setup:
@@ -21,8 +23,6 @@
     become: true
 
   - name: Copy the jq filter script
-    vars:
-      filename: select_vg.jq
     copy:
       src: files/{{ filename }}
       # AB: by default the variable preparekvm_clone_vm_dir
@@ -32,14 +32,14 @@
       # /root/clone_vm/, which does not exist and yields an
       # error.
       dest: "{{ preparekvm_clone_vm_dir }}/{{ filename }}"
-      mode: 0755
+      mode: 0644
 
   - name: Get the VG information for the storage pool
     # AB: the JSON object of Ansible facts must be placed in
     # single quotes to protect it from the shell.
     shell: >
       echo '{{ ansible_facts | to_json }}' |
-      ./select_vg.jq
+      jq -r -f {{ filename }}
       --arg user_specified_vg "{{ preparekvm_user_specified_vg }}"
       --argjson minimum_gib "{{ preparekvm_min_gib }}"
     args:
@@ -79,28 +79,35 @@
   vars:
     preparekvm_pool_vg: "{{ preparekvm_vg_info.stdout }}"
     preparekvm_pool_devices: "{{ _devices_info.stdout }}"
+    virtualization_group: '{% if ansible_facts.distribution == "CentOS" %}virtualization-host-environment{% elif ansible_facts.distribution == "Fedora" %}virtualization{% else %}{% endif %}'
   block:
   - name: Install necessary software on KVM host
     yum:
       name:
-      - '@virtualization'
+      - '@{{ virtualization_group }}'
       - libguestfs
       - libguestfs-xfs
-      - libguestfs-zfs
-      - libguestfs-jfs
+      # AB: CentOS7 does not have libguestfs-zfs,
+      # libguestfs-jfs, python2-libguestfs, python2-libvirt,
+      # python2-lxml, python3-libguestfs, python3-libvirt,
+      # python3-lxml. We want our role to work on both
+      # Fedora 29 and CentOS7, so we need to skip it.
+      #- libguestfs-zfs
+      #- libguestfs-jfs
       - nmap
-      - python2-libguestfs
-      - python2-libvirt
-      - python2-lxml
-      - python3-libguestfs
-      - python3-libvirt
-      - python3-lxml
+      #- python2-libguestfs
+      #- python2-libvirt
+      #- python2-lxml
+      #- python3-libguestfs
+      #- python3-libvirt
+      #- python3-lxml
       - libguestfs-tools
       - libguestfs-tools-c
       - libguestfs-rescue
       - libselinux-python
       - wget
       state: present
+    failed_when: virtualization_group == ""
 
   - name: Enable the libvirtd service
     service:

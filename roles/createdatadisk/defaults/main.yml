@@ -1,4 +1,4 @@
 ---
 
 # AB: the name of the VG used as the pool for KVM volumes.
-createdatadisk_vg: '{% if preparekvm_vg_info is defined %}{{ preparekvm_vg_info.stdout|default("")}}{% else %}{% endif %}'
+createdatadisk_vg: '{% if preparekvm_vg_info is defined %}{{ preparekvm_vg_info.stdout|default("")}}{% elif create_tpl_vm_vg is defined %}{{ create_tpl_vm_vg|default("") }}{% else %}{% endif %}'

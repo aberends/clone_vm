@@ -66,9 +66,34 @@ KVM_HOST_PREREQUISITES
 
 We tested our cloning practise on a CentOS7 and a Fedora29
 host. The host is installed with a Minimal installation
-source and default partitioning is used. Meaning that it has
-at least the centos (CentOS7 case) or the fedora (Fedora29
-case) VG (Volume Group).
+source and manual partitioning is chosesn with the default
+partitioning scheme. The sizes uses are:
+
+- boot: 1024 MiB
+- swap: 8 GiB (internal memory is 32 GiB)
+- root: 30 GiB
+
+Because of the default partitioning scheme we have at least
+the centos (CentOS7 case) or the fedora (Fedora29 case) VG
+(Volume Group).
+
+The installer limits the partition size on which the centos
+or fedora VG resides to the size needed. Since we have a 960
+GiB disk we have more space. Consequently we need to grow
+the partition, the PV and VG:
+
+# parted -s /dev/nvme0n1 resizepart 3 100%
+
+Note that the partition number can be different if you used
+legacy boot. Since we used UEFI boot we have an extra
+partition and we end up resizing partition number 3. With
+legacy boot it is partition number 2.
+
+Now resize the PV:
+
+# pvresize /dev/nvme0n1p3
+  Physical volume "/dev/nvme0n1p3" changed
+  1 physical volume(s) resized or updated / 0 physical volume(s) not resized
 
 This can be verified with:
 
@@ -102,8 +127,9 @@ with a Minimal installation source. So, before we can run
 the create_tpl_vm.sh script which calls ansible-playbook, we
 need to install ansible:
 
-# yum -y install epel-release
-# yum -y install ansible
+#
+yum -y install epel-release
+yum -y install ansible
 
 In order to obtain the software to make the cloneable VM, we
 need git too:
@@ -161,7 +187,7 @@ following command:
 
 We install the groups with:
 
-# yum group install virtualization-host-environment virtualization-hypervisor virtualization-tools virtualization-client virtualization-platform
+# yum -y group install virtualization-host-environment virtualization-hypervisor virtualization-tools virtualization-client virtualization-platform
 
 We check if we have all the commands we need:
 
@@ -310,6 +336,14 @@ connected to a cable and show the state LOWER_UP. The
 states NO-CARRIER and LOWER_UP are opposites.
 
 
+SETUP_POOL
+
+#
+virsh pool-define-as centos logical /dev/centos
+virsh pool-autostart centos
+virsh pool-start centos
+
+
 ENABLE_VIRT_MANAGER
 
 From another machine we use SSH to log in on our laptop
@@ -385,7 +419,9 @@ If you say yes, the installer executes setfacl to correct
 the permissions. We do it on the command line to avoid this
 pop-up altogether:
 
-$ setfacl -m u:qemu:x .
+$
+cd
+setfacl -m u:qemu:x .
 
 Note, if you want to experiment with the ACL, it can be
 removed with:

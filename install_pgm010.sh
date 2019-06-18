@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DOMAIN=pgm010
-POOL=fedora
+POOL=os
 VCPUS=1
 
 virsh destroy $DOMAIN

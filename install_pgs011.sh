@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DOMAIN=pgs011
-POOL=os
+POOL=$(vgs --noheadings -o vg_name | sed -n '1s/ *//gp')
 VCPUS=1
 
 virsh destroy $DOMAIN

@@ -10,7 +10,7 @@ virsh vol-delete $DOMAIN $POOL
 virsh vol-create-as $POOL $DOMAIN 5g
 
 MEMORY=$((1*1024))
-DESCRIPTION="PostgreSQL slave"
+DESCRIPTION="PGPool-II"
 CDROM_PATH=/home/allard/clone_vm/CentOS-7-x86_64-Minimal-1810.iso
 KICKSTART_PATH=/home/allard/clone_vm/$DOMAIN.ks
 MAC=$(printf "52:54:%2.2x:%2.2x:%2.2x:%2.2x\n" 192 168 122 12)

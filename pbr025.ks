@@ -21,8 +21,8 @@ keyboard --vckeymap=us --xlayouts='us'
 lang en_US.UTF-8
 
 # Network information
-network --bootproto=static --device=eth0 --gateway=192.168.122.1 --ip=192.168.122.10 --nameserver=8.8.4.4,8.8.8.8 --netmask=255.255.255.0 --ipv6=auto --activate
-network --hostname=pgm010.home.org
+network --bootproto=static --device=eth0 --gateway=192.168.122.1 --ip=192.168.122.25 --nameserver=8.8.4.4,8.8.8.8 --netmask=255.255.255.0 --ipv6=auto --activate
+network --hostname=pbr025.home.org
 
 # Root password
 rootpw --iscrypted $6$VqpnR1p7fX77VP1I$y2bB8RshiFXMAgzHed4RIaZUR1ny8GnXGCCw8uHRItsvx/xsnqsx0X/YMwIuRfKKmBQ5FCeTUkP9mnXDzri9u1

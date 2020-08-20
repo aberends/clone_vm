@@ -47,7 +47,7 @@ virt-install \
   --initrd-inject=$KICKSTART_PATH \
   --boot=hd \
   --os-variant=centos7.0 \
-  --disk=path=$VOL_PATH,device=disk,format=qcow2 \
+  --disk=path=$VOL_PATH,device=disk,format=qcow2,size=8 \
   --network=network=default,mac=$MAC \
   --graphics=none \
   --noautoconsole \

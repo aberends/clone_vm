@@ -19,9 +19,16 @@ Date with 'LC_TIME=en_US date +"\%d-\%b-\%Y \%H:\%M", '.
 
 REFERENCES
 
+[jq_plan]         jq usage, ~/jq/plan.txt
+
 [kvm_wp]          Kernel-based Virtual Machine,
                   https://en.wikipedia.org/wiki/Kernel-based_Virtual_Machine
 
+[lv_conn_uris]    libvirt: Connection URIs,
+                  https://libvirt.org/uri.html
+
+[nvme_tour]       A Quick Tour of NVM Express (NVMe),
+                  https://metebalci.com/blog/a-quick-tour-of-nvm-express-nvme/
 
 ABBREVIATIONS
 
@@ -53,8 +60,12 @@ Create with:
 - ABBREVIATIONS
 - TERMS
 - SECTIONS
+- NVME
+- KVM_HOST_PREREQUISITES
 - RPMS_AND_GROUPS_PREREQUISITES
 - VIRTUALIZATION_SERVICE
+- SETUP_POOL
+- ENABLE_VIRSH_NORMAL_USER
 - ENABLE_VIRT_MANAGER
 - DOWNLOAD_ISO
 - VIRT_INSTALL
@@ -62,12 +73,145 @@ Create with:
 - UNATTENDED_CONFIGURATION_WITH_ANSIBLE
 
 
+IP_PLAN
+
+We derive our local IP plan from the mcare-m environment in
+AWS. We obtain the information from AWS as described in
+section "AWS_EC2_NODES" of [jq_plan]. Note, the alias
+mcare_m includes the information as in section
+"AWS_EC2_NODES".
+
+$ mcare_m | awk -F, '{print $2 " " $1}' | sort -t '.' -k 4,4 -n
+10.200.16.10 mcare-m-rhc001
+10.200.16.11 mcare-m-idm001
+10.200.17.11 mcare-m-idm002
+10.200.16.12 mcare-m-zbx001
+10.200.16.13 mcare-m-lgs001
+10.200.16.16 mcare-m-zbp001
+10.200.17.16 mcare-m-zbp002
+10.200.16.22 mcare-m-ssh001
+10.200.17.22 mcare-m-ssh002
+10.200.16.24 mcare-m-sec001
+10.200.17.24 mcare-m-lgs002
+10.200.16.25 mcare-m-els001
+10.200.17.25 mcare-m-els002
+10.200.17.26 mcare-m-kfz002
+10.200.16.28 mcare-m-mgt001
+10.200.16.29 mcare-m-kfz001
+10.200.19.30 mcare-m-jen001
+10.200.16.32 mcare-m-pup001
+10.200.16.38 mcare-m-rnd001
+
+Since we only want single instances of every node type we
+grep for 001. So, we get:
+
+$ mcare_m | grep 001 | awk -F, '{print $2 " " $1}' | sort -t '.' -k 4,4 -n
+10.200.16.10 mcare-m-rhc001
+10.200.16.11 mcare-m-idm001
+10.200.16.12 mcare-m-zbx001
+10.200.16.13 mcare-m-lgs001
+10.200.16.16 mcare-m-zbp001
+10.200.16.22 mcare-m-ssh001
+10.200.16.24 mcare-m-sec001
+10.200.16.25 mcare-m-els001
+10.200.16.28 mcare-m-mgt001
+10.200.16.29 mcare-m-kfz001
+10.200.19.30 mcare-m-jen001
+10.200.16.32 mcare-m-pup001
+10.200.16.38 mcare-m-rnd001
+
+Now, we want to transform it to the default network of
+libvirt, which is 192.168.122.0/24 and also the FQDNs to
+something.local.lan:
+
+$ mcare_m | grep 001 | awk -F, '{gsub(/.*-/, "", $1); gsub(/.*\./, "", $2); printf "%-15s  %s\n", "192.168.122."$2, "nuc3-m-"$1".tux.m.nuc3.lan nuc3-m-"$1}' | sort -t. -k 4,4 -n
+192.168.122.10   nuc3-m-rhc001.tux.m.nuc3.lan nuc3-m-rhc001
+192.168.122.11   nuc3-m-idm001.tux.m.nuc3.lan nuc3-m-idm001
+192.168.122.12   nuc3-m-zbx001.tux.m.nuc3.lan nuc3-m-zbx001
+192.168.122.13   nuc3-m-lgs001.tux.m.nuc3.lan nuc3-m-lgs001
+192.168.122.16   nuc3-m-zbp001.tux.m.nuc3.lan nuc3-m-zbp001
+192.168.122.22   nuc3-m-ssh001.tux.m.nuc3.lan nuc3-m-ssh001
+192.168.122.24   nuc3-m-sec001.tux.m.nuc3.lan nuc3-m-sec001
+192.168.122.25   nuc3-m-els001.tux.m.nuc3.lan nuc3-m-els001
+192.168.122.28   nuc3-m-mgt001.tux.m.nuc3.lan nuc3-m-mgt001
+192.168.122.29   nuc3-m-kfz001.tux.m.nuc3.lan nuc3-m-kfz001
+192.168.122.30   nuc3-m-jen001.tux.m.nuc3.lan nuc3-m-jen001
+192.168.122.32   nuc3-m-pup001.tux.m.nuc3.lan nuc3-m-pup001
+192.168.122.38   nuc3-m-rnd001.tux.m.nuc3.lan nuc3-m-rnd001
+
+Note, for the nuc3 itself on which we run the VMs we use the
+wifi network and a cross cable when directly connected to
+nuc1.
+
+For this purpose we set:
+
+nuc3# nmcli connection modify eno1 ipv4.addresses 192.168.2.3/24 ipv4.method manual
+nuc3# nmcli connection up eno1
+
+On the nuc1 this also needs to be set, so:
+
+nuc1# nmcli connection modify eno1 ipv4.addresses 192.168.2.1/24 ipv4.method manual
+nuc1# nmcli connection up eno1
+
+To access the VMs on nuc3 from the command line on nuc1, we
+configure ssh with the following settings in ~/.ssh/config:
+
+$ mcare_m | grep 001 | awk -F, '{gsub(/.*-/, "", $1); print "nuc3-m-"$1}' | while read line
+do
+  echo -e "Host $line\n  Hostname $line\n  StrictHostKeyChecking no\n  UserKnownHostsFile=/dev/null\n  ProxyJump nuc3lan\n  User root\n"
+done
+Host nuc3-m-els001
+  Hostname nuc3-m-els001
+  StrictHostKeyChecking no
+  UserKnownHostsFile=/dev/null
+  ProxyJump nuc3lan
+  User root
+.
+.
+
+Prepend with:
+
+# Nuc3
+Host nuc3lan
+  Hostname 192.168.2.3
+  User allard
+
+
+NVME
+
+The disk we use on the host is a M.2 SSD. The communication
+is done via a protocol called NVMe. It sits between the PCIe
+slot and the controller on the disk. For an interesting
+read, refer to [nvme_tour].
+
+The name of the driver in Linux is nvme. The /dev/nvme0
+refers to the first controller found. A controller deals
+with the storage units. These are divided in so-called
+namespaces, e.g. /dev/nvme0n1 is the first namespace on the
+first nvme controller.
+
+The namespaces provide space for a block device that can be
+partitioned, e.g. /dev/nvme0n1p1 is the first partition on
+the first namespace on the first nvme controller.
+
+On Linux you can see it with:
+
+# lsblk -i
+NAME            MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+nvme0n1         259:0    0 894.3G  0 disk
+|-nvme0n1p1     259:1    0   600M  0 part /boot/efi
+|-nvme0n1p2     259:2    0     1G  0 part /boot
+`-nvme0n1p3     259:3    0 892.7G  0 part
+  |-fedora-root 253:0    0 884.7G  0 lvm  /
+  `-fedora-swap 253:1    0     8G  0 lvm  [SWAP]
+
+
 KVM_HOST_PREREQUISITES
 
 We tested our cloning practise on a CentOS7 and a Fedora29
 host. The host is installed with a Minimal installation
-source and manual partitioning is chosesn with the default
-partitioning scheme. The sizes uses are:
+source and manual partitioning is chosen with the default
+partitioning scheme. The sizes used are:
 
 - boot: 1024 MiB
 - swap: 8 GiB (internal memory is 32 GiB)
@@ -115,6 +259,8 @@ anything else, we execute:
 yum -y update
 reboot
 
+TODO: document how to use up the VG so that PFree is 0.
+
 
 RPMS_AND_GROUPS_PREREQUISITES
 
@@ -128,7 +274,7 @@ the create_tpl_vm.sh script which calls ansible-playbook, we
 need to install ansible:
 
 #
-yum -y install epel-release
+yum -y install epel-release   # Only for CentOS7.
 yum -y install ansible
 
 In order to obtain the software to make the cloneable VM, we
@@ -269,6 +415,9 @@ command line, we install:
 yum -y install python2-pip
 pip install jinja2-cli
 
+TODO: RHEL8 and Fedora32 use python 3. Document how to
+install it.
+
 
 VIRTUALIZATION_SERVICE
 
@@ -338,10 +487,30 @@ states NO-CARRIER and LOWER_UP are opposites.
 
 SETUP_POOL
 
+Note, this section is only relevant if you want to run the
+pool as a VG.
+
 #
 virsh pool-define-as centos logical /dev/centos
 virsh pool-autostart centos
 virsh pool-start centos
+
+
+ENABLE_VIRSH_NORMAL_USER
+
+We want to run all command line virsh commands from within a
+normal account. Instead of having to type "--connect
+qemu://system", we can set it as default for the user:
+
+$
+mkdir -p ~/.config/libvirt
+cat << '_EOF_' > ~/.config/libvirt/libvirt.conf
+uri_default = "qemu:///system"
+_EOF_
+
+This information comes from [lv_conn_uris], by compiling the
+information in section "Configuring URI aliases"
+(libvirt.conf) and section "Default URI choice".
 
 
 ENABLE_VIRT_MANAGER
@@ -403,13 +572,14 @@ $
 cd ~/clone_vm
 # Obtain the ISO redirect URL from CentOS for the minimal
 # install.
-URL=$(curl -s https://www.centos.org/download/ | grep -o 'http://.*-x86_64-Minimal-.*\.iso')
+#URL=$(curl -s https://www.centos.org/download/ | grep -o 'http://.*-x86_64-Minimal-.*\.iso')
+URL="http://ftp.tudelft.nl/centos.org/7.8.2003/isos/x86_64/CentOS-7-x86_64-Minimal-2003.iso"
 # Obtain the ISO file.
 ISOFILE=$(echo $URL | sed 's#.*/##')
 # Check if the ISO is already downloaded in the home
 # directory of the user. If not, remove old ISO's and
 # download new one.
-[ -f "$ISOFILE" ] || { rm -f *-x86_64-Minimal-*.iso; wget $URL; }
+[ -f "~/Downloads/$ISOFILE" ] || { rm -f *-x86_64-Minimal-*.iso; wget -P ~/Downloads $URL; }
 
 During the installation virt-manager shows a pop-up with the
 question: The emulator may not have search permissions for
@@ -420,7 +590,7 @@ the permissions. We do it on the command line to avoid this
 pop-up altogether:
 
 $
-cd
+cd ~/Downloads
 setfacl -m u:qemu:x .
 
 Note, if you want to experiment with the ACL, it can be
@@ -435,6 +605,19 @@ $ printf "52:54:%2.2x:%2.2x:%2.2x:%2.2x\n" 192 168 122 3
 
 
 VIRT_INSTALL
+
+The descriptions of the node types are obtained from what we
+set in terraform. So, we use:
+
+$ cd terraform-mcare-care
+$ grep -e '^module' -e Description aws_ec2.tf
+
+From the output we can deduce what description we want to
+give to an instance. Since we use each node type only once
+we don't need to add a sequence number.
+
+The description for the Zabbix server is for example:
+"Zabbix". For the Zabbix proxy it is: "Zabbix Proxy".
 
 Obtain possible OS variants that can be used in KVM:
 

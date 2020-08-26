@@ -603,6 +603,12 @@ Calculate the MAC address:
 $ printf "52:54:%2.2x:%2.2x:%2.2x:%2.2x\n" 192 168 122 3
 52:54:c0:a8:7a:03
 
+Note, when we do an install we also get the warning:
+
+WARNING  /home/allard/.cache/virt-manager/boot may not be accessible by the hypervisor. You will need to grant the 'qemu' user search permissions for the following directories: ['/home/allard/.cache']
+
+TODO: explain how to fix this.
+
 
 VIRT_INSTALL
 

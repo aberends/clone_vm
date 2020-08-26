@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # /etc/hosts entry:
-# 192.168.122.12   nuc3-m-zbx001.tux.m.nuc3.lan nuc3-m-zbx001
+# 192.168.122.16   nuc3-m-zbp001.tux.m.nuc3.lan nuc3-m-zbp001
 
 # Input variables.
 CDROM_PATH=$HOME/Downloads/CentOS-7-x86_64-Minimal-2003.iso
-DESCRIPTION="Zabbix"
-DOMAIN=zbx001
-HOST_PORTION=12
+DESCRIPTION="Zabbix Proxy"
+DOMAIN=zbp001
+HOST_PORTION=16
 IMAGES_DIR=/var/lib/libvirt/images
 MEMORY=$((1*1024))
 NETWORK_PORTION="192 168 122"

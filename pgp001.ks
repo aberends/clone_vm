@@ -21,8 +21,8 @@ keyboard --vckeymap=us --xlayouts='us'
 lang en_US.UTF-8
 
 # Network information
-network --bootproto=static --device=enp1s0 --gateway=192.168.122.1 --ip=192.168.122.12 --nameserver=8.8.8.8,8.8.4.4 --netmask=255.255.255.0 --ipv6=auto --activate
-network --hostname=nuc3-m-zbx001.tux.m.nuc3.lan
+network --bootproto=static --device=enp1s0 --gateway=192.168.122.1 --ip=192.168.122.140 --nameserver=8.8.8.8,8.8.4.4 --netmask=255.255.255.0 --ipv6=auto --activate
+network --hostname=nuc3-m-pgp001.tux.m.nuc3.lan
 
 # Root password
 rootpw --iscrypted $6$5d16VVhay0dtaRGf$tSRx/cfMo8vq9hAxPfMcc7BAaJBAIvwpgOudWq4L1.6buhxcylnVM.RdhF7h/PArBWO8CviSdT6GRVsyAIlcI/
@@ -42,8 +42,8 @@ clearpart --drives=vda --all --initlabel
 # Disk partitioning information
 part /boot --fstype="xfs" --ondisk=vda --size=512
 part pv.157 --fstype="lvmpv" --ondisk=vda --size=4607 --grow
-volgroup zbx001 --pesize=4096 pv.157
-logvol /  --fstype="xfs" --size=4092 --name=root --vgname=zbx001 --grow
+volgroup pgp001 --pesize=4096 pv.157
+logvol /  --fstype="xfs" --size=4092 --name=root --vgname=pgp001 --grow
 # Poweroff the system to give us a change to persistently
 # remove the CDROM.
 poweroff

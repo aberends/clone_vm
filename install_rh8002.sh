@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # /etc/hosts entry:
-# 192.168.122.12   nuc3-m-zbx001.tux.m.nuc3.lan nuc3-m-zbx001
+# 192.168.122.42   nuc3-m-rh8002.tux.m.nuc3.lan nuc3-m-rh8002
 
 # Input variables.
-CDROM_PATH=/var/lib/libvirt/boot/CentOS-8.4.2105-x86_64-dvd1.iso
-DESCRIPTION="Zabbix 5.4 server"
-DOMAIN=zbx001
-HOST_PORTION=12
+CDROM_PATH=/var/lib/libvirt/boot/rhel-8.4-x86_64-dvd.iso
+DESCRIPTION="RHEL8 server"
+DOMAIN=rh8002
+HOST_PORTION=42
 IMAGES_DIR=/var/lib/libvirt/images
 MEMORY=$((1*1024))
 NETWORK_PORTION="192 168 122"
@@ -46,7 +46,7 @@ virt-install \
   --extra-args="inst.ks=file:/$DOMAIN.ks console=ttyS0,115200 inst.sshd" \
   --initrd-inject=$KICKSTART_PATH \
   --boot=hd \
-  --os-variant=centos8 \
+  --os-variant=rhel8.3 \
   --disk=path=$VOL_PATH,device=disk,format=qcow2,size=20 \
   --network=network=default,mac=$MAC \
   --graphics=none \

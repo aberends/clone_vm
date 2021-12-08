@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # /etc/hosts entry:
-# 192.168.122.12   nuc3-m-zbx001.tux.m.nuc3.lan nuc3-m-zbx001
+# 192.168.122.104  nuc3-m-etc005.tux.m.nuc3.lan nuc3-m-etc005
 
 # Input variables.
 CDROM_PATH=/var/lib/libvirt/boot/CentOS-8.4.2105-x86_64-dvd1.iso
-DESCRIPTION="Zabbix 5.4 server"
-DOMAIN=zbx001
-HOST_PORTION=12
+DESCRIPTION="Etcd cluster node"
+DOMAIN=etc005
+HOST_PORTION=104
 IMAGES_DIR=/var/lib/libvirt/images
 MEMORY=$((1*1024))
 NETWORK_PORTION="192 168 122"

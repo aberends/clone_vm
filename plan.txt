@@ -19,7 +19,16 @@ Date with 'LC_TIME=en_US date +"\%d-\%b-\%Y \%H:\%M", '.
 
 REFERENCES
 
+[ad_plan]         Active directory, ~/ad/plan.txt
+
+[dc_plan]         Docker, ~/docker/plan.txt
+
+[gl_plan]         Gitlab installation and use,
+                  ~/gitlab/plan.txt
+
 [jq_plan]         jq usage, ~/jq/plan.txt
+
+[kc_plan]         Keycloak installation, ~/keycloak/plan.txt
 
 [kvm_wp]          Kernel-based Virtual Machine,
                   https://en.wikipedia.org/wiki/Kernel-based_Virtual_Machine
@@ -29,6 +38,11 @@ REFERENCES
 
 [nvme_tour]       A Quick Tour of NVM Express (NVMe),
                   https://metebalci.com/blog/a-quick-tour-of-nvm-express-nvme/
+
+[pni_plan]        Patroni HA PostgreSQL, ~/patroni/plan.txt
+
+[rhce_plan]       Preparing for RHCE exam, ~/rhce/plan.txt
+
 
 ABBREVIATIONS
 
@@ -60,6 +74,7 @@ Create with:
 - ABBREVIATIONS
 - TERMS
 - SECTIONS
+- IP_PLAN
 - NVME
 - KVM_HOST_PREREQUISITES
 - RPMS_AND_GROUPS_PREREQUISITES
@@ -175,6 +190,33 @@ Prepend with:
 Host nuc3lan
   Hostname 192.168.2.3
   User allard
+
+For Ansible, see [rhce_plan]:
+192.168.122.40   nuc3-m-acn001.tux.m.nuc3.lan nuc3-m-acn001
+
+For Windows, see [ad_plan]:
+192.168.122.50   nuc3-m-mws001.tux.m.nuc3.lan nuc3-m-mws001
+192.168.122.51   nuc3-m-mwc001.tux.m.nuc3.lan nuc3-m-mwc001
+
+For keycloak, see [kc_plan]:
+192.168.122.60   nuc3-m-kcs001.tux.m.nuc3.lan nuc3-m-kcs001
+
+For gitlab, see [gl_plan]:
+192.168.122.70   nuc3-m-gls001.tux.m.nuc3.lan nuc3-m-gls001
+
+For docker swarm, see [dc_plan]:
+192.168.122.80   nuc3-m-dsm001.tux.m.nuc3.lan nuc3-m-dsm001
+192.168.122.81   nuc3-m-dsm002.tux.m.nuc3.lan nuc3-m-dsm002
+192.168.122.82   nuc3-m-dsm003.tux.m.nuc3.lan nuc3-m-dsm003
+
+For patroni, see [pni_plan]:
+192.168.122.90   nuc3-m-pni001.tux.m.nuc3.lan nuc3-m-pni001
+192.168.122.91   nuc3-m-pni002.tux.m.nuc3.lan nuc3-m-pni002
+192.168.122.93   nuc3-m-etc001.tux.m.nuc3.lan nuc3-m-etc001
+192.168.122.94   nuc3-m-etc002.tux.m.nuc3.lan nuc3-m-etc002
+192.168.122.95   nuc3-m-etc003.tux.m.nuc3.lan nuc3-m-etc003
+192.168.122.96   nuc3-m-hap001.tux.m.nuc3.lan nuc3-m-hap001
+192.168.122.97   nuc3-m-hap002.tux.m.nuc3.lan nuc3-m-hap002
 
 
 NVME
@@ -483,6 +525,25 @@ cable is connected to the ethernet port. For example:
 The virb0 device is a virtual device. Hence it cannot be
 connected to a cable and show the state LOWER_UP. The
 states NO-CARRIER and LOWER_UP are opposites.
+
+Q.  After a reboot of the host VMs receive the same MAC as
+    before. Apparently the MAC is persistently stored by
+    libvirtd. But where?
+A.  The file /var/lib/libvirt/dnsmasq/virbr0.macs contains
+    the MAC addresses of the VMs that have an interface on
+    virbr0. It is in JSON format. To use it with jq, see
+    below.
+
+We want to find the domain that holds the MAC address
+52:54:c0:a8:7a:82. We use the following command:
+
+$ jq '.[] | select(any(.macs[] == "52:54:c0:a8:7a:82"; .))' /var/lib/libvirt/dnsmasq/virbr0.macs
+{
+  "domain": "edb001",
+  "macs": [
+    "52:54:c0:a8:7a:82"
+  ]
+}
 
 
 SETUP_POOL
@@ -795,6 +856,63 @@ Anyway, we need to set it to autostart again:
 To start the VM:
 
 # virsh start $DOMAIN
+
+
+VIRSH_VOL
+
+The pools:
+
+nuc3$ virsh pool-list --name
+boot-scratch
+default
+Downloads
+
+nuc3$ virsh pool-dumpxml default
+<pool type='dir'>
+  <name>default</name>
+  <uuid>8cd53589-93a3-48cd-9e4a-27d3eb17519e</uuid>
+  <capacity unit='bytes'>949436985344</capacity>
+  <allocation unit='bytes'>686925803520</allocation>
+  <available unit='bytes'>262511181824</available>
+  <source>
+  </source>
+  <target>
+    <path>/var/lib/libvirt/images</path>
+    <permissions>
+      <mode>0711</mode>
+      <owner>0</owner>
+      <group>0</group>
+      <label>system_u:object_r:virt_image_t:s0</label>
+    </permissions>
+  </target>
+</pool>
+
+nuc3$ virsh vol-list default | grep -e rh8 -e Name
+ Name                                                    Path
+ rh8001.qcow2                                            /var/lib/libvirt/images/rh8001.qcow2
+ rh8002.qcow2                                            /var/lib/libvirt/images/rh8002.qcow2
+ rh8003.qcow2                                            /var/lib/libvirt/images/rh8003.qcow2
+
+nuc3$ virsh vol-info --pool default rh8002.qcow2
+Name:           rh8002.qcow2
+Type:           file
+Capacity:       20.00 GiB
+Allocation:     2.41 GiB
+
+nuc3$ virsh vol-create-as default rh8002_vdb.qcow2 2g
+Vol rh8002_vdb.qcow2 created
+
+nuc3$ virsh vol-info --pool default rh8002_vdb.qcow2
+Name:           rh8002_vdb.qcow2
+Type:           file
+Capacity:       2.00 GiB
+Allocation:     2.00 GiB
+
+nuc3$ virsh attach-disk rh8002 /var/lib/libvirt/images/rh8002_vdb.qcow2 vdb
+Disk attached successfully
+
+nuc3$ virsh detach-disk rh8002 /var/lib/libvirt/images/rh8002_vdb.qcow2
+Disk detached successfully
 
 
 SHRINK_VM_DISK

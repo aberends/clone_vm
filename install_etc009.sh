@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # /etc/hosts entry:
-# 192.168.122.12   nuc3-m-zbx001.tux.m.nuc3.lan nuc3-m-zbx001
+# 192.168.122.115  nuc3-m-etc009.tux.m.nuc3.lan nuc3-m-etc009
 
 # Input variables.
-CDROM_PATH=/var/lib/libvirt/boot/CentOS-8.4.2105-x86_64-dvd1.iso
-DESCRIPTION="Zabbix 5.4 server"
-DOMAIN=zbx001
-HOST_PORTION=12
+CDROM_PATH=/var/lib/libvirt/boot/CentOS-7-x86_64-DVD-2009.iso
+DESCRIPTION="Etcd cluster node"
+DOMAIN=etc009
+HOST_PORTION=115
 IMAGES_DIR=/var/lib/libvirt/images
 MEMORY=$((1*1024))
 NETWORK_PORTION="192 168 122"
@@ -43,10 +43,10 @@ virt-install \
   --metadata=description="$DESCRIPTION" \
   --vcpus=vcpus=$VCPUS \
   --location=$CDROM_PATH \
-  --extra-args="inst.ks=file:/$DOMAIN.ks console=ttyS0,115200 inst.sshd" \
+  --extra-args="ks=file:/$DOMAIN.ks console=ttyS0,115200 inst.sshd" \
   --initrd-inject=$KICKSTART_PATH \
+  --os-variant=centos7.0 \
   --boot=hd \
-  --os-variant=centos8 \
   --disk=path=$VOL_PATH,device=disk,format=qcow2,size=20 \
   --network=network=default,mac=$MAC \
   --graphics=none \

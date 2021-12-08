@@ -1,12 +1,6 @@
 # Use CDROM installation media
 cdrom
 
-# Configure repo to be able to install telnet and
-# vim-enhanced. To figure out what to fill in refer to
-# /etc/yum.repos.d/fedora.repo and
-# https://pykickstart.readthedocs.io/en/latest/kickstart-docs.html
-# section "repo".
-#repo --name=base --metalink=https://mirrors.fedoraproject.org/metalink?repo=fedora-$releasever&arch=$basearch
 repo --name="AppStream" --baseurl=file:///run/install/sources/mount-0000-cdrom/AppStream
 
 # Use text install.
@@ -16,13 +10,13 @@ text
 firstboot --disable
 
 # Keyboard layouts
-keyboard --vckeymap=us --xlayouts='us'
+keyboard --xlayouts='us'
 # System language
 lang en_US.UTF-8
 
 # Network information
-network --bootproto=static --device=enp1s0 --gateway=192.168.122.1 --ip=192.168.122.12 --nameserver=8.8.8.8,8.8.4.4 --netmask=255.255.255.0 --ipv6=auto --activate
-network --hostname=nuc3-m-zbx001.tux.m.nuc3.lan
+network  --bootproto=static --device=enp1s0 --gateway=192.168.122.1 --ip=192.168.122.40 --nameserver=8.8.8.8,8.8.4.4 --netmask=255.255.255.0 --ipv6=auto --activate
+network  --hostname=nuc3-m-acn001.tux.m.nuc3.lan
 
 # Root password
 rootpw --iscrypted $6$5d16VVhay0dtaRGf$tSRx/cfMo8vq9hAxPfMcc7BAaJBAIvwpgOudWq4L1.6buhxcylnVM.RdhF7h/PArBWO8CviSdT6GRVsyAIlcI/
@@ -42,19 +36,21 @@ clearpart --drives=vda --all --initlabel
 # Disk partitioning information
 part /boot --fstype="xfs" --ondisk=vda --size=512
 part pv.157 --fstype="lvmpv" --ondisk=vda --size=4607 --grow
-volgroup zbx001 --pesize=4096 pv.157
-logvol /  --fstype="xfs" --size=4092 --name=root --vgname=zbx001 --grow
+volgroup acn001 --pesize=4096 pv.157
+logvol /  --fstype="xfs" --size=4092 --name=root --vgname=acn001 --grow
+logvol swap --fstype="swap" --size=512 --name=swap --vgname=acn001
 # Poweroff the system to give us a change to persistently
 # remove the CDROM.
 poweroff
 
 %packages
-@^custom-environment
+kexec-tools
 telnet
 vim-enhanced
 %end
 
-%addon com_redhat_kdump --disable --reserve-mb='auto'
+%addon com_redhat_kdump --enable --reserve-mb='auto'
+
 %end
 
 %post --log=/root/ks-post.log

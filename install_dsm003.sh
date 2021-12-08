@@ -1,18 +1,18 @@
 #!/bin/bash
 
 # /etc/hosts entry:
-# 192.168.122.12   nuc3-m-zbx001.tux.m.nuc3.lan nuc3-m-zbx001
+# 192.168.122.82   nuc3-m-dsm003.tux.m.nuc3.lan nuc3-m-dsm003
 
 # Input variables.
-CDROM_PATH=/var/lib/libvirt/boot/CentOS-8.4.2105-x86_64-dvd1.iso
-DESCRIPTION="Zabbix 5.4 server"
-DOMAIN=zbx001
-HOST_PORTION=12
+CDROM_PATH=/var/lib/libvirt/boot/Fedora-Server-dvd-x86_64-33-1.2.iso
+DESCRIPTION="Docker swarm manager"
+DOMAIN=dsm003
+HOST_PORTION=82
 IMAGES_DIR=/var/lib/libvirt/images
-MEMORY=$((1*1024))
+MEMORY=$((4*1024))
 NETWORK_PORTION="192 168 122"
 POOL=default
-VCPUS=1
+VCPUS=2
 
 # Calculated variables.
 #FQDN="nuc3-m-$DOMAIN.tux.m.nuc3.lan"
@@ -46,7 +46,7 @@ virt-install \
   --extra-args="inst.ks=file:/$DOMAIN.ks console=ttyS0,115200 inst.sshd" \
   --initrd-inject=$KICKSTART_PATH \
   --boot=hd \
-  --os-variant=centos8 \
+  --os-variant=fedora33 \
   --disk=path=$VOL_PATH,device=disk,format=qcow2,size=20 \
   --network=network=default,mac=$MAC \
   --graphics=none \

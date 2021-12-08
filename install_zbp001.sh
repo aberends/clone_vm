@@ -4,8 +4,8 @@
 # 192.168.122.16   nuc3-m-zbp001.tux.m.nuc3.lan nuc3-m-zbp001
 
 # Input variables.
-CDROM_PATH=$HOME/Downloads/CentOS-7-x86_64-Minimal-2003.iso
-DESCRIPTION="Zabbix Proxy"
+CDROM_PATH=/var/lib/libvirt/boot/CentOS-8.4.2105-x86_64-dvd1.iso
+DESCRIPTION="Zabbix 5.4 proxy"
 DOMAIN=zbp001
 HOST_PORTION=16
 IMAGES_DIR=/var/lib/libvirt/images
@@ -43,11 +43,11 @@ virt-install \
   --metadata=description="$DESCRIPTION" \
   --vcpus=vcpus=$VCPUS \
   --location=$CDROM_PATH \
-  --extra-args="ks=file:/$DOMAIN.ks console=ttyS0,115200 inst.sshd" \
+  --extra-args="inst.ks=file:/$DOMAIN.ks console=ttyS0,115200 inst.sshd" \
   --initrd-inject=$KICKSTART_PATH \
   --boot=hd \
-  --os-variant=centos7.0 \
-  --disk=path=$VOL_PATH,device=disk,format=qcow2,size=8 \
+  --os-variant=centos8 \
+  --disk=path=$VOL_PATH,device=disk,format=qcow2,size=20 \
   --network=network=default,mac=$MAC \
   --graphics=none \
   --noautoconsole \
